@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ShoeCommerce - Premium Footwear</title>
+    <!-- AdSense Code Snippet -->
+    <script async src="https://pagesd2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3757835197540945" crossorigin="anonymous"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -308,6 +310,16 @@
             transform: translateY(-2px);
         }
 
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+
         /* Cart Notification */
         .cart-notification {
             position: fixed;
@@ -563,6 +575,17 @@
             border-radius: 12px;
             width: 90%;
             max-width: 400px;
+        }
+
+        /* Add Product Modal */
+        .add-product-form {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
         }
 
         /* Order Tracking Section */
@@ -907,6 +930,7 @@
                 <button data-section="orders-section">Orders</button>
                 <button data-section="products-section">Products</button>
                 <button data-section="customers-section">Customers</button>
+                <button id="add-product-btn">Add Product</button>
                 <button id="admin-logout">Logout</button>
             </div>
 
@@ -1120,6 +1144,53 @@
         </div>
     </div>
 
+    <!-- Add Product Modal -->
+    <div class="modal" id="add-product-modal">
+        <div class="add-product-form">
+            <h2 class="text-center">Add New Product</h2>
+            <form id="product-form">
+                <div class="form-group">
+                    <label for="product-name">Product Name</label>
+                    <input type="text" id="product-name" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="product-price">Price (₹)</label>
+                    <input type="number" id="product-price" class="form-control" min="1" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="product-description">Description</label>
+                    <textarea id="product-description" class="form-control" rows="3" required></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="product-image">Image URL</label>
+                    <input type="url" id="product-image" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="product-stock">Stock Quantity</label>
+                    <input type="number" id="product-stock" class="form-control" min="1" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="product-features">Features (comma separated)</label>
+                    <input type="text" id="product-features" class="form-control" placeholder="Comfortable, Lightweight, Durable">
+                </div>
+                
+                <div class="form-group">
+                    <label for="product-return">Return Charge (₹)</label>
+                    <input type="number" id="product-return" class="form-control" value="200" min="0" required>
+                </div>
+                
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    <i class="fas fa-plus-circle"></i> Add Product
+                </button>
+            </form>
+        </div>
+    </div>
+
     <!-- Cart Notification -->
     <div class="cart-notification" id="cart-notification">
         <i class="fas fa-check-circle"></i>
@@ -1129,7 +1200,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Sample product data
-            const products = [
+            let products = JSON.parse(localStorage.getItem('products')) || [
                 {
                     id: 1,
                     name: "Nike Air Max",
@@ -1172,6 +1243,11 @@
                 }
             ];
 
+            // Save initial products to localStorage if not already there
+            if (!localStorage.getItem('products')) {
+                localStorage.setItem('products', JSON.stringify(products));
+            }
+
             // Initialize data
             let cart = JSON.parse(localStorage.getItem('cart')) || [];
             let orders = JSON.parse(localStorage.getItem('orders')) || [];
@@ -1191,6 +1267,7 @@
             const productModal = document.getElementById('product-modal');
             const orderModal = document.getElementById('order-modal');
             const adminLoginModal = document.getElementById('admin-login-modal');
+            const addProductModal = document.getElementById('add-product-modal');
             const closeModalButtons = document.querySelectorAll('.close-modal');
             const cartNotification = document.getElementById('cart-notification');
             const orderTrackingSection = document.getElementById('order-tracking-section');
@@ -1206,6 +1283,7 @@
                     productModal.style.display = 'none';
                     orderModal.style.display = 'none';
                     adminLoginModal.style.display = 'none';
+                    addProductModal.style.display = 'none';
                 });
             });
 
@@ -1219,6 +1297,9 @@
                 }
                 if (event.target === adminLoginModal) {
                     adminLoginModal.style.display = 'none';
+                }
+                if (event.target === addProductModal) {
+                    addProductModal.style.display = 'none';
                 }
             });
 
@@ -1274,10 +1355,58 @@
                 showSection('home');
             });
 
+            // Add product button
+            document.getElementById('add-product-btn').addEventListener('click', function() {
+                addProductModal.style.display = 'flex';
+            });
+
+            // Product form submission
+            document.getElementById('product-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const name = document.getElementById('product-name').value;
+                const price = parseInt(document.getElementById('product-price').value);
+                const description = document.getElementById('product-description').value;
+                const image = document.getElementById('product-image').value;
+                const stock = parseInt(document.getElementById('product-stock').value);
+                const featuresInput = document.getElementById('product-features').value;
+                const returnCharge = parseInt(document.getElementById('product-return').value);
+                
+                const features = featuresInput ? featuresInput.split(',').map(f => f.trim()) : [];
+                
+                // Create new product
+                const newProduct = {
+                    id: products.length > 0 ? Math.max(...products.map(p => p.id)) + 1 : 1,
+                    name,
+                    price,
+                    description,
+                    features,
+                    image,
+                    stock,
+                    returnCharge
+                };
+                
+                // Add to products array
+                products.push(newProduct);
+                localStorage.setItem('products', JSON.stringify(products));
+                
+                // Close modal and reset form
+                addProductModal.style.display = 'none';
+                document.getElementById('product-form').reset();
+                
+                // Update products in admin dashboard
+                updateAdminDashboard();
+                
+                // Update products on main page
+                renderProducts();
+                
+                alert('Product added successfully!');
+            });
+
             // Admin menu navigation
             adminMenuButtons.forEach(button => {
                 button.addEventListener('click', function() {
-                    if (this.id === 'admin-logout') return;
+                    if (this.id === 'admin-logout' || this.id === 'add-product-btn') return;
                     
                     // Remove active class from all buttons
                     adminMenuButtons.forEach(btn => btn.classList.remove('active'));
@@ -1328,7 +1457,7 @@
                             <div class="status-icon"><i class="fas fa-cog"></i></div>
                             <div class="status-text">Processing</div>
                         </div>
-                        <div class="status-step active">
+                        <div class 'status-step active'>
                             <div class="status-icon"><i class="fas fa-truck"></i></div>
                             <div class="status-text">Shipped</div>
                         </div>
@@ -1733,12 +1862,19 @@
                         <td style="padding: 0.75rem;">₹${product.price}</td>
                         <td style="padding: 0.75rem;">${product.stock}</td>
                         <td style="padding: 0.75rem;">
-                            <button class="btn btn-primary">Edit</button>
-                            <button class="btn btn-danger">Delete</button>
+                            <button class="btn btn-danger delete-product" data-id="${product.id}">Delete</button>
                         </td>
                     `;
                     
                     adminProductsBody.appendChild(row);
+                });
+
+                // Add event listeners to delete buttons
+                document.querySelectorAll('.delete-product').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const productId = parseInt(this.getAttribute('data-id'));
+                        deleteProduct(productId);
+                    });
                 });
                 
                 // Update customers
@@ -1758,6 +1894,30 @@
                     
                     adminCustomersBody.appendChild(row);
                 });
+            }
+
+            // Function to delete product
+            function deleteProduct(productId) {
+                if (!confirm('Are you sure you want to delete this product?')) {
+                    return;
+                }
+                
+                // Remove product from products array
+                products = products.filter(product => product.id !== productId);
+                localStorage.setItem('products', JSON.stringify(products));
+                
+                // Remove product from cart if present
+                cart = cart.filter(item => item.id !== productId);
+                localStorage.setItem('cart', JSON.stringify(cart));
+                updateCartCount();
+                
+                // Update admin dashboard
+                updateAdminDashboard();
+                
+                // Update products on main page
+                renderProducts();
+                
+                alert('Product deleted successfully!');
             }
         });
     </script>
